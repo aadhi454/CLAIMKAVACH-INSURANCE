@@ -1,0 +1,6 @@
+{
+  "name": "ClaimKavach MVP v2",
+  "description": "Local-first hospital insurance claim-readiness assistant with PII masking, deterministic rules validation, human review dispositions, and gated FHIR R4 Bundle generation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

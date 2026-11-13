@@ -1,0 +1,38 @@
+flowchart TD
+    subgraph LocalHospitalWorkstation["Local Hospital Billing Workstation (No External PDF / Raw Record Uploads)"]
+        Clerk["Billing Clerk / Reviewer\n(Streamlit UI & Local Web UI)"]
+        SampleGen["Synthetic PDF Generator\n(sample_generator.py)\n5 Fictional PDFs in sample_data/"]
+        DocProc["Document Processor\n(document_processor.py)\nPyMuPDF Digital Text + Optional Local Tesseract OCR"]
+        Vault["In-Memory Per-Claim Token Vault\n(pii_masker.py)\nDeterministic PII Masking & Local Unmasking"]
+        Orch["Single Bounded Orchestrator\n(agent_orchestrator.py)\nTyped Tool Registry (Max 7 Turns)"]
+        RulesEng["Deterministic Rules & Consistency Engine\n(rules_engine.py)\nPASS / FAIL / REVIEW + Provenance"]
+        HumanRev["Human Review & Disposition Gate\nPreserves Original Finding + Audits Reviewer & Rationale\nCannot Clear FAIL Without Evidence + Rerun"]
+        FHIRGate["Backend FHIR R4 Gate & Structural Validator\n(fhir_builder.py)\nfhir.resources==6.4.0 (FHIR R4 4.0.1)\nNot NHCX/HCX Profile Conformance"]
+        MockNHCX["Local-Only Mock NHCX Sandbox\nSynthetic Response Only — Zero Network Calls"]
+        SQLite[("Local SQLite Database\n(database.py)\nClaims, Docs, Provenance, Versioned Synthetic Rules,\nFindings, Redacted Traces, Audit Logs")]
+    end
+
+    subgraph OptionalExternalLLM["Optional External LLM (Only If GEMINI_API_KEY Configured)"]
+        Gemini["Google Gemini API (google-genai)\nReceives ONLY Masked Minimum-Necessary Metadata\nOtherwise Deterministic DEMO FALLBACK"]
+    end
+
+    SampleGen -->|"Synthetic Demo PDFs"| Clerk
+    Clerk -->|"1. Select/Create Claim & Upload PDFs"| Orch
+    Orch -->|"Tool 1 & 2: Classify & Extract"| DocProc
+    DocProc -->|"Register & Mask PII Locally"| Vault
+    DocProc -->|"Save ExtractedDocs & Provenance"| SQLite
+    Orch -.->|"Optional Masked Snippet Only\n(Never Raw PDFs or Full Records)"| Gemini
+    Gemini -.->|"Masked Readiness Note\n(Or DEMO FALLBACK)"| Orch
+    Orch -->|"Tool 3, 4, 5: Retrieve Approved Effective Rules,\nValidate Evidence & Cross-Doc Consistency"| RulesEng
+    RulesEng <-->|"Read Approved Effective Synthetic Rules\n(Fictional Insurers A & B: A1, A2, B1, B2)"| SQLite
+    RulesEng -->|"Persist PASS / FAIL / REVIEW Findings"| SQLite
+    Orch -->|"Persist Redacted ToolTraces & AuditEntry"| SQLite
+    SQLite -->|"Display Findings, Provenance & Redacted Trace"| Clerk
+    Clerk -->|"4. Confirm Fields / Add Missing PDF /\nRecord REVIEW Disposition"| HumanRev
+    HumanRev -->|"Update Field Provenance / Disposition & Audit\n(Never Converts FAIL to PASS)"| SQLite
+    HumanRev -->|"Rerun Affected Checks"| Orch
+    Clerk -->|"6. Request FHIR R4 Draft Bundle"| FHIRGate
+    SQLite -->|"Verify 0 FAIL & 0 Unresolved REVIEW"| FHIRGate
+    FHIRGate -->|"Emit Validated FHIR R4 Bundle JSON"| Clerk
+    FHIRGate -->|"Optional Local Pre-Check"| MockNHCX
+    MockNHCX -->|"Labelled Synthetic Success/Failure\n(0 Network Calls)"| Clerk
