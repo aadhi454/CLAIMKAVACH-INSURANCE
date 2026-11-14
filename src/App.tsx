@@ -16,6 +16,10 @@ import { RulesPage } from "./pages/RulesPage";
 import { DocumentsPage } from "./pages/DocumentsPage";
 import { ReportsPage } from "./pages/ReportsPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { ReviewCenterPage } from "./pages/ReviewCenterPage";
+import { IntelligencePage } from "./pages/IntelligencePage";
+import { DeveloperPortalPage } from "./pages/DeveloperPortalPage";
+import { InsurerPortalPage } from "./pages/InsurerPortalPage";
 
 export default function App() {
   const [appState, setAppState] = useState<AppState | null>(null);
@@ -26,7 +30,8 @@ export default function App() {
 
   // Routing State
   const [currentView, setCurrentView] = useState<PageView>("landing");
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(true);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
+  const [postLoginView, setPostLoginView] = useState<PageView | null>(null);
 
   // Active Demo User Profile
   const [demoUser, setDemoUser] = useState<DemoUser>({
@@ -161,6 +166,7 @@ export default function App() {
     claim_type: string;
     relevant_date: string;
     diagnosis: string;
+    estimated_amount: string;
     care_setting: string;
     force_fallback: boolean;
     uploaded_files: Array<{ filename: string; base64: string; sizeKb: number }>;
@@ -301,8 +307,42 @@ export default function App() {
   const handleLoginSuccess = (user: DemoUser) => {
     setDemoUser(user);
     setIsLoggedIn(true);
-    setCurrentView("dashboard");
+    setCurrentView(user.role === "Insurance Company" ? "insurer-portal" : (postLoginView || "dashboard"));
+    setPostLoginView(null);
     showToast(`Welcome back, ${user.username} (${user.role}).`);
+  };
+
+  const handleNavigateToApiKeys = () => {
+    if (isLoggedIn) {
+      setCurrentView("developer-portal");
+      return;
+    }
+    setPostLoginView("developer-portal");
+    setCurrentView("login");
+  };
+
+  const handleDispatchClaim = async (insurerId: string, policyName: string) => {
+    if (!appState?.active_claim || !appState.fhir_bundle) return;
+    const claim = appState.active_claim;
+    const response = await fetch("/api/claims/dispatch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        claim_ref: claim.claim_id,
+        hospital_name: demoUser.hospital,
+        insurer_id: insurerId,
+        policy_name: policyName,
+        diagnosis: claim.diagnosis,
+        masked_patient_summary: "[NAME_MASKED] [PHONE_MASKED] [GOV_ID_MASKED]",
+        rule_audit: appState.findings,
+        fhir_bundle: appState.fhir_bundle.bundle,
+      }),
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.message || "Claim dispatch failed.");
+    showToast(`Transmitted to ${policyName} insurer inbox.`);
+    await fetchState(claim.claim_id);
+    return payload;
   };
 
   // Loading Screen
@@ -346,10 +386,10 @@ export default function App() {
     switch (currentView) {
       case "dashboard":
         return (
-          <DashboardPage
+          <NewClaimPage
             appState={appState}
             onNavigate={setCurrentView}
-            onSelectClaim={handleSelectClaim}
+            onSubmitClaim={handleSubmitNewClaim}
             onLaunchDemoScenario={handleLaunchDemoScenario}
           />
         );
@@ -372,6 +412,7 @@ export default function App() {
             onRunMockNhcx={handleRunMockNhcx}
             onReevaluateRules={handleReevaluateRules}
             onDownloadFhirBundle={handleDownloadFhirBundle}
+            onDispatchClaim={handleDispatchClaim}
           />
         );
       case "all-claims":
@@ -382,6 +423,12 @@ export default function App() {
             onSelectClaim={handleSelectClaim}
           />
         );
+      case "review-center":
+        return <ReviewCenterPage appState={appState} onNavigate={setCurrentView} onSelectClaim={handleSelectClaim} />;
+      case "intelligence":
+        return <IntelligencePage appState={appState} onNavigate={setCurrentView} />;
+      case "developer-portal":
+        return <DeveloperPortalPage appState={appState} onNavigate={setCurrentView} />;
       case "policies":
         return <PoliciesPage appState={appState} onNavigate={setCurrentView} />;
       case "rules":
@@ -418,17 +465,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-white text-[#0A0A0A] flex flex-col selection:bg-[#0022FF] selection:text-white">
-      {/* Top Universal Navbar */}
-      <Navbar
-        currentView={currentView}
-        onNavigate={setCurrentView}
-        isLoggedIn={isLoggedIn}
-        onLogout={() => {
-          setIsLoggedIn(false);
-          setCurrentView("landing");
-        }}
-      />
+    <div className="min-h-screen app-shell text-[#0B192C] flex flex-col selection:bg-[#0052FF] selection:text-white">
 
       {/* Floating Animated Toast */}
       {toastMessage && (
@@ -460,6 +497,7 @@ export default function App() {
         <LandingPage
           onNavigate={setCurrentView}
           onLaunchDemoScenario={handleLaunchDemoScenario}
+          onNavigateToApiKeys={handleNavigateToApiKeys}
         />
       ) : currentView === "login" ? (
         <LoginPage
@@ -472,6 +510,7 @@ export default function App() {
           insurer={activeClaim?.insurer || "Fictional Insurer A"}
           policyCode={activeClaim?.policy_code || "A1"}
           diagnosis={activeClaim?.diagnosis || "Dengue Fever"}
+          isProcessing={busyAction === "process_claim"}
           onVerificationComplete={() => setCurrentView("results")}
           error={errorBanner}
           onRetry={() => {
@@ -479,9 +518,23 @@ export default function App() {
             setCurrentView("new-claim");
           }}
         />
+      ) : currentView === "insurer-portal" && demoUser.insurerId ? (
+        <InsurerPortalPage
+          insurer={{
+            id: demoUser.insurerId,
+            company_name: demoUser.insurerName || "Insurance Company",
+            insurer_code: demoUser.insurerCode || "",
+            email: demoUser.email,
+          }}
+          onNavigate={setCurrentView}
+          onLogout={() => {
+            setIsLoggedIn(false);
+            setCurrentView("landing");
+          }}
+        />
       ) : (
         /* Internal Workspace with Left Sidebar & Main Content */
-        <div className="flex-1 flex max-w-[1440px] w-full mx-auto">
+        <div className="flex-1 flex flex-col lg:flex-row max-w-[1560px] w-full mx-auto">
           <Sidebar
             currentView={currentView}
             onNavigate={setCurrentView}
@@ -494,14 +547,12 @@ export default function App() {
             readinessPct={readinessPct}
             unresolvedCount={unresolvedReviewCount}
           />
-          <main className="flex-1 min-w-0 bg-white">
+          <main className="flex-1 min-w-0">
             {renderInternalPage()}
           </main>
         </div>
       )}
 
-      {/* Swiss Editorial Footer */}
-      <Footer onNavigate={setCurrentView} />
     </div>
   );
 }

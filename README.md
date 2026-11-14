@@ -56,6 +56,31 @@ flowchart LR
    - Strict backend gate locks export until all evidence is verified (100% readiness).
    - Generates genuine HL7 FHIR R4 (4.0.1) `Bundle` containing `Patient`, `Coverage`, `Encounter`, `Condition`, `Claim`, and `DocumentReference` resources.
    - Includes local Mock NHCX Gateway simulation with auto-check and error simulation modes.
+6. **Explainable Assessment Reports (`report_generator.py`):**
+   - Generates a local branded PDF containing claim context, evidence inventory, deterministic findings, readiness scoring, gate status, and next actions.
+   - Reports distinguish verification assessment from final payment adjudication and identify synthetic demonstration data.
+
+### Operational Intelligence Phases
+
+The Intelligence Center exposes the requested phased workflow from the same local evidence record:
+
+1. **Classification and scan quality:** every document receives a deterministic type, processing mode, and ingest-quality score. The score describes extraction quality only; it is not clinical validation.
+2. **Evidence provenance:** extracted fields retain document, page, excerpt, and confidence metadata for reviewer inspection.
+3. **Missing-document recommendations:** missing types are derived from applicable approved rules and presented with an upload recommendation.
+4. **Denial-risk and SLA prioritization:** persisted FAIL/REVIEW findings, missing evidence, and scan quality produce an operational priority. The timer is explicitly based on the last persisted update and is not a legal or insurer SLA determination.
+5. **Integrity signals and policy copilot:** duplicate/cross-document conflicts are surfaced as review signals, while the local policy copilot answers only from cited approved synthetic rules. Neither produces a fraud finding, coverage decision, or payment adjudication.
+
+## Hospital REST API
+
+The local Express server exposes a versioned B2B API backed by the same Python rule engine:
+
+- `POST /api/v1/keys/generate` creates a sandbox (`ck_test_`) or production (`ck_live_`) key. The raw secret is returned once; SQLite stores only its SHA-256 hash.
+- `GET /api/v1/keys` lists masked prefixes and usage metadata.
+- `POST /api/v1/keys/:id/revoke` immediately revokes a key.
+- `POST /api/v1/audit-claim` accepts JSON base64 PDFs or multipart `documents` uploads. It requires `Authorization: Bearer <key>` or `X-API-Key: <key>`.
+- `GET /api/v1/developer` returns integration metadata; the in-app **Developer Portal** provides key management and request examples.
+
+`audit-claim` maps `INS-DEMO-01` to Fictional Insurer A and `INS-DEMO-02` to Fictional Insurer B, evaluates the configured policy code through the deterministic rules engine, and returns `status: "PASS"` with a FHIR R4 `collection` bundle only when the backend gate is clear. Blocked audits return remediation findings and `fhir_r4_bundle: null`. The API’s masking response explicitly avoids claiming DPDP compliance certification; the existing local masking limitation notice remains authoritative.
 
 ---
 
@@ -63,7 +88,8 @@ flowchart LR
 
 - **Typography:** Modern, clean geometric typography powered by **Poppins** (weights 300 through 900) and **JetBrains Mono** for data provenance coordinates and JSON inspect.
 - **Brand Palette:**
-  - Electric Blue (`#0022FF`) — Primary Action Accent
+  - Deep Command Navy (`#07111F`) — Operational Surface
+  - Cyan Signal (`#22D3EE`) — Primary Action Accent
   - Deep Navy (`#042D4F`) — Brand Shield Base
   - Neutral Off-Black (`#0A0A0A`) — High-Contrast Typography
   - Success Green (`#16834A`) — Validated Conformance

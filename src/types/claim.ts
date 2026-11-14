@@ -104,13 +104,13 @@ export interface ClaimPacket {
   claim_type: string;
   relevant_date: string;
   diagnosis?: string;
+  estimated_amount?: string;
   care_setting?: string;
   patient_reference?: string;
   patient_name?: string;
   status: string;
   created_at?: string;
   updated_at?: string;
-  estimated_amount?: string;
 }
 
 export interface PolicyConfig {
@@ -140,6 +140,36 @@ export interface AppState {
   system: SystemInfo;
   policy_configs: PolicyConfig[];
   claims: ClaimPacket[];
+  operations: {
+    metrics: {
+      total_claims: number;
+      under_verification: number;
+      completed_verifications: number;
+      requires_review: number;
+      failed_execution_runs: number;
+      average_verification_seconds: number | null;
+    };
+    pipeline: {
+      submitted: number;
+      queued: number;
+      completed: number;
+      review: number;
+      closed: number;
+    };
+    priority_queue: Array<{
+      claim_id: string;
+      amount: string;
+      status: string;
+      reason: string;
+      next_action: string;
+      updated_at: string;
+      severity: "HIGH" | "MEDIUM";
+    }>;
+    recent_activity: AuditEntry[];
+    verification_volume: Array<{ date: string; total: number; clear: number; exception: number }>;
+    stage_execution_counts: Record<string, number>;
+    data_note: string;
+  };
   active_claim: ClaimPacket | null;
   documents: ExtractedDoc[];
   applicable_rules?: RuleItem[];
@@ -149,6 +179,68 @@ export interface AppState {
     approval_state: string;
     reasons: string[];
   }>;
+  document_completeness: {
+    required_count: number;
+    received_count: number;
+    missing_count: number;
+    items: Array<{
+      document_type: string;
+      status: "RECEIVED" | "MISSING";
+    }>;
+  };
+  missing_document_recommendations: Array<{
+    document_type: string;
+    label: string;
+    priority: "HIGH" | "NORMAL";
+    reason: string;
+    accepted_document_types: string[];
+    action: string;
+  }>;
+  scan_quality: {
+    average_score: number | null;
+    items: Array<{
+      doc_id: string;
+      filename: string;
+      document_type: string;
+      score: number;
+      band: "GOOD" | "REVIEW" | "POOR";
+      processing_mode: string;
+      page_count: number;
+      reasons: string[];
+    }>;
+  };
+  sla_priority: {
+    priority: "CRITICAL" | "HIGH" | "NORMAL";
+    deadline_hours: number;
+    timer_basis: string;
+    tracked_from: string;
+    is_overdue: boolean;
+    reason: string;
+    disclaimer: string;
+  } | null;
+  integrity_signals: {
+    status: "REVIEW_SIGNALS" | "NO_SIGNALS";
+    signals: Array<{
+      type: "cross_document_conflict" | "duplicate_document";
+      severity: "HIGH" | "MEDIUM";
+      field: string;
+      message: string;
+      evidence: Array<Record<string, unknown>>;
+      disposition: string;
+    }>;
+    disclaimer: string;
+  };
+  policy_copilot: {
+    question: string;
+    answer: string;
+    scope: string;
+    citations: Array<{
+      rule_id: string;
+      description: string;
+      source_reference: string;
+    }>;
+    disclaimer: string;
+  } | null;
   outbound_preview?: Record<string, unknown> | null;
   findings: ValidationFinding[];
   traces: ToolTrace[];
@@ -157,6 +249,26 @@ export interface AppState {
   gate: {
     allowed: boolean;
     blocking_reasons: string[];
+  };
+  risk_summary: {
+    score: number;
+    band: "LOW" | "MEDIUM" | "HIGH" | "NOT_RUN";
+    headline: string;
+    counts: {
+      pass: number;
+      fail: number;
+      review: number;
+      resolved_review: number;
+    };
+    top_risks: Array<{
+      status: "FAIL" | "REVIEW";
+      rule_id: string;
+      issue: string;
+      reason: string;
+    }>;
+    next_actions: string[];
+    operational_impact: string;
+    document_count: number;
   };
   fhir_bundle: {
     fhir_version: string;
@@ -182,6 +294,10 @@ export type PageView =
   | "verifying"
   | "results"
   | "all-claims"
+  | "review-center"
+  | "intelligence"
+  | "developer-portal"
+  | "insurer-portal"
   | "policies"
   | "rules"
   | "documents"
@@ -190,7 +306,10 @@ export type PageView =
 
 export interface DemoUser {
   username: string;
-  role: "Billing Administrator" | "Claims Auditor" | "Medical Director";
+  role: "Billing Administrator" | "Claims Auditor" | "Medical Director" | "Insurance Company";
   email: string;
   hospital: string;
+  insurerId?: string;
+  insurerName?: string;
+  insurerCode?: string;
 }

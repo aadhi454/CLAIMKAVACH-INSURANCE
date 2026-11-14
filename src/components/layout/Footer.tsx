@@ -9,10 +9,10 @@ interface FooterProps {
 
 export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
   return (
-    <footer className="bg-[#0A0A0A] text-white border-t border-[#262626] pt-16 pb-12 mt-auto">
+    <footer className="bg-white text-[#0A0A0A] border-t border-[#D9D9D9] pt-16 pb-12 mt-auto">
       <div className="max-w-[1360px] mx-auto px-6 space-y-12">
         {/* Top Editorial Row */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 pb-12 border-b border-[#262626]">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 pb-12 border-b border-[#D9D9D9]">
           <div className="md:col-span-5 space-y-4">
             <div className="flex items-center gap-3">
               <ClaimKavachLogo size={32} variant="image" />
@@ -34,15 +34,15 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
           </div>
 
           <div className="md:col-span-2 space-y-3">
-            <div className="text-xs font-mono font-bold text-white uppercase tracking-wider">
+            <div className="text-xs font-mono font-bold text-[#0A0A0A] uppercase tracking-wider">
               Navigation
             </div>
-            <ul className="space-y-2 text-xs font-mono text-[#94A3B8]">
+            <ul className="space-y-2 text-xs font-mono text-[#64748B]">
               <li>
                 <button
                   type="button"
                   onClick={() => onNavigate("landing")}
-                  className="hover:text-white transition-colors"
+                  className="hover:text-[#0022FF] transition-colors"
                 >
                   Overview
                 </button>
@@ -51,7 +51,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                 <button
                   type="button"
                   onClick={() => onNavigate("new-claim")}
-                  className="hover:text-white transition-colors"
+                  className="hover:text-[#0022FF] transition-colors"
                 >
                   New Claim
                 </button>
@@ -60,7 +60,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                 <button
                   type="button"
                   onClick={() => onNavigate("all-claims")}
-                  className="hover:text-white transition-colors"
+                  className="hover:text-[#0022FF] transition-colors"
                 >
                   Claims Registry
                 </button>
@@ -69,7 +69,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                 <button
                   type="button"
                   onClick={() => onNavigate("policies")}
-                  className="hover:text-white transition-colors"
+                  className="hover:text-[#0022FF] transition-colors"
                 >
                   Policy Catalog
                 </button>
@@ -78,7 +78,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                 <button
                   type="button"
                   onClick={() => onNavigate("rules")}
-                  className="hover:text-white transition-colors"
+                  className="hover:text-[#0022FF] transition-colors"
                 >
                   Rules Engine
                 </button>
@@ -87,10 +87,10 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
           </div>
 
           <div className="md:col-span-2 space-y-3">
-            <div className="text-xs font-mono font-bold text-white uppercase tracking-wider">
+            <div className="text-xs font-mono font-bold text-[#0A0A0A] uppercase tracking-wider">
               Standards
             </div>
-            <ul className="space-y-2 text-xs font-mono text-[#94A3B8]">
+            <ul className="space-y-2 text-xs font-mono text-[#64748B]">
               <li className="flex items-center gap-1">
                 <span>HL7 FHIR R4 (4.0.1)</span>
               </li>
@@ -102,10 +102,10 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
           </div>
 
           <div className="md:col-span-3 space-y-3">
-            <div className="text-xs font-mono font-bold text-white uppercase tracking-wider">
+            <div className="text-xs font-mono font-bold text-[#0A0A0A] uppercase tracking-wider">
               Quick Demo Access
             </div>
-            <p className="text-xs text-[#94A3B8]">
+            <p className="text-xs text-[#64748B]">
               Explore the complete 5-step claim ingestion and verification workflow with pre-seeded hospital scenarios.
             </p>
             <button
@@ -120,8 +120,8 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
         </div>
 
         {/* Regulatory & Scope Boundary Disclosures */}
-        <div className="p-4 bg-[#141414] border border-[#262626] rounded-xs space-y-2 text-[11px] font-mono text-[#94A3B8]">
-          <div className="text-white font-bold tracking-wider flex items-center gap-2">
+        <div className="p-4 bg-[#F8FAFC] border border-[#D9D9D9] rounded-xs space-y-2 text-[11px] font-mono text-[#64748B]">
+          <div className="text-[#0A0A0A] font-bold tracking-wider flex items-center gap-2">
             <span className="text-[#E6A000]">MANDATORY LIMITATION & BOUNDARY DISCLOSURE</span>
           </div>
           <p>
@@ -141,9 +141,9 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
             © 2026 ClaimKavach — Built for Swiss Post-Modern Healthcare Engineering.
           </div>
           <div className="flex items-center gap-4">
-            <span className="hover:text-white transition-colors cursor-pointer" onClick={() => onNavigate("landing")}>Privacy Policy</span>
+            <span className="hover:text-[#0022FF] transition-colors cursor-pointer" onClick={() => onNavigate("landing")}>Privacy Policy</span>
             <span>·</span>
-            <span className="hover:text-white transition-colors cursor-pointer" onClick={() => onNavigate("landing")}>Terms of Service</span>
+            <span className="hover:text-[#0022FF] transition-colors cursor-pointer" onClick={() => onNavigate("landing")}>Terms of Service</span>
             <span>·</span>
             <span className="text-[#0022FF] font-bold">Hackathon Demo Release</span>
           </div>

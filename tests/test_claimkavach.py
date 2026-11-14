@@ -6,6 +6,7 @@ Covers all required acceptance tests using temporary directories/databases and s
 from __future__ import annotations
 
 import json
+import base64
 import sys
 from pathlib import Path
 from unittest.mock import patch
@@ -15,14 +16,20 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import pytest
 
 from agent_orchestrator import ClaimReadinessOrchestrator
+from cli_bridge import build_risk_summary, execute_api_audit_claim
 from database import (
+    authenticate_api_key,
+    create_api_key,
     create_or_version_rule,
     get_findings,
     get_policy_configs,
+    list_api_keys,
     init_db,
     list_audit_logs,
+    log_api_request,
     list_rules,
     record_review_disposition,
+    revoke_api_key,
     save_extracted_doc,
     set_rule_approval_state,
 )
@@ -37,6 +44,7 @@ from fhir_builder import (
     validate_fhir_r4_bundle,
 )
 from models import ClaimPacket, Rule
+from models import ValidationFinding
 from pii_masker import ClaimTokenVault, build_gemini_payload, mask_text, redact, unmask_text
 from rules_engine import (
     get_applicable_rules,
@@ -84,6 +92,46 @@ def test_01_first_run_db_seeds_four_fictional_policies_and_marks_synthetic(temp_
     for r in seeded_rules:
         assert r.is_synthetic is True
         assert "SYNTHETIC DEMO DATA" in r.source_reference
+
+
+def test_01b_risk_summary_prioritizes_blockers_and_next_actions():
+    findings = [
+        ValidationFinding(
+            finding_id="FND-FAIL",
+            claim_id="CLM-RISK",
+            status="FAIL",
+            rule_id="RULE-MISSING-DOC",
+            issue="Missing investigation report",
+            reason="Required evidence not found.",
+            recommended_action="Upload the finalized investigation report.",
+        ),
+        ValidationFinding(
+            finding_id="FND-REVIEW",
+            claim_id="CLM-RISK",
+            status="REVIEW",
+            rule_id="RULE-DATE-CONFLICT",
+            issue="Conflicting admission dates",
+            reason="Admission date differs across documents.",
+            recommended_action="Confirm the admission date against the chart.",
+        ),
+        ValidationFinding(
+            finding_id="FND-PASS",
+            claim_id="CLM-RISK",
+            status="PASS",
+            rule_id="RULE-IDENTITY",
+            reason="Patient identity is consistent.",
+        ),
+    ]
+
+    summary = build_risk_summary(findings, [], gate_ok=False)
+
+    assert summary["score"] == 47
+    assert summary["band"] == "HIGH"
+    assert summary["top_risks"][0]["rule_id"] == "RULE-MISSING-DOC"
+    assert summary["next_actions"] == [
+        "Upload the finalized investigation report.",
+        "Confirm the admission date against the chart.",
+    ]
 
 
 def test_02_rule_retrieval_filters_by_policy_claim_type_diagnosis_date_and_approval(temp_env):
@@ -536,3 +584,64 @@ def test_09_fhir_r4_gate_structural_validation_and_local_mock_nhcx_no_network(te
         assert mock_ok["is_synthetic_mock"] is True
         assert mock_ok["network_calls_made"] == 0
         assert "MOCK NHCX — LOCAL SIMULATION ONLY — NOT SUBMITTED TO ANY REAL GATEWAY" in mock_ok["label"]
+
+
+def test_10_hospital_api_key_lifecycle_and_deterministic_audit(temp_env):
+    """10. API keys are hashed, revocation is immediate, and the headless audit uses the real FHIR gate."""
+    db_path = temp_env["db_path"]
+    created = create_api_key("API Test Hospital", "Custom ERP", "sandbox", db_path=db_path)
+    assert created["api_key"].startswith("ck_test_")
+    assert created["api_key"] not in json.dumps(list_api_keys(db_path))
+
+    identity = authenticate_api_key(created["api_key"], db_path=db_path)
+    assert identity and identity["hospital_name"] == "API Test Hospital"
+
+    documents = []
+    for path in (
+        temp_env["sample_files"]["clinical_summary"],
+        temp_env["sample_files"]["investigation_report"],
+        temp_env["sample_files"]["discharge_summary"],
+        temp_env["sample_files"]["itemized_estimate"],
+    ):
+        document_path = Path(path)
+        documents.append(
+            {
+                "filename": document_path.name,
+                "base64": base64.b64encode(document_path.read_bytes()).decode("ascii"),
+            }
+        )
+
+    with patch("cli_bridge.DEFAULT_DB_PATH", db_path), patch(
+        "cli_bridge.UPLOAD_DIR", temp_env["tmp_path"] / "uploads"
+    ):
+        result = execute_api_audit_claim(
+            {
+                "hospital_claim_ref": "API-CLAIM-10",
+                "insurer_id": "INS-DEMO-01",
+                "policy_type": "A1",
+                "claim_type": "Cashless Pre-Auth",
+                "diagnosis_icd10": "A90",
+                "documents": documents,
+                "_hospital_name": "API Test Hospital",
+                "_api_key_id": created["id"],
+                "_latency_ms": 12,
+            }
+        )
+
+    assert result["status"] == "PASS"
+    assert result["summary"]["failed"] == 0
+    assert result["nhcx_gateway_ready"] is True
+    assert result["fhir_r4_bundle"]["type"] == "collection"
+    log_api_request(
+        api_key_id=created["id"],
+        endpoint="/api/v1/audit-claim",
+        insurer_id="INS-DEMO-01",
+        diagnosis_code="A90",
+        verdict=result["status"],
+        latency_ms=12,
+        db_path=db_path,
+    )
+    assert list_api_keys(db_path)[0]["requests_count"] == 1
+
+    assert revoke_api_key(created["id"], db_path=db_path) is True
+    assert authenticate_api_key(created["api_key"], db_path=db_path) is None

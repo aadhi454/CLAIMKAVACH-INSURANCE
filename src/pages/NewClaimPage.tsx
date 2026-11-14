@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   Upload,
   FileText,
@@ -28,6 +28,7 @@ interface NewClaimPageProps {
     claim_type: string;
     relevant_date: string;
     diagnosis: string;
+    estimated_amount: string;
     care_setting: string;
     force_fallback: boolean;
     uploaded_files: Array<{ filename: string; base64: string; sizeKb: number }>;
@@ -101,10 +102,13 @@ export const NewClaimPage: React.FC<NewClaimPageProps> = ({
   // Target Policy & Context (Payer configuration)
   const [claimId, setClaimId] = useState(`CLM-${Math.floor(100 + Math.random() * 900)}`);
   const [insurer, setInsurer] = useState("Fictional Insurer A");
+  const [selectedInsurerId, setSelectedInsurerId] = useState("");
+  const [liveInsurers, setLiveInsurers] = useState<Array<{ id: string; company_name: string; policies: Array<{ policy_name: string }> }>>([]);
   const [policyCode, setPolicyCode] = useState("A1");
   const [claimType, setClaimType] = useState("Inpatient Cashless");
   const [admissionDate, setAdmissionDate] = useState("2026-10-10");
   const [diagnosis, setDiagnosis] = useState("Dengue Fever");
+  const [estimatedAmount, setEstimatedAmount] = useState("42500");
   const [careSetting, setCareSetting] = useState("inpatient");
   const [forceFallback, setForceFallback] = useState(true);
 
@@ -121,9 +125,39 @@ export const NewClaimPage: React.FC<NewClaimPageProps> = ({
 
   const [showSampleDrawer, setShowSampleDrawer] = useState(false);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [demoApiKey, setDemoApiKey] = useState<{ key_prefix: string; status: string } | null>(null);
+  const [apiGatewayError, setApiGatewayError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const totalStagedCount = uploadedFiles.length + selectedSampleFiles.length;
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/v1/keys/demo")
+      .then(async (response) => {
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.message || "Demo API key could not be loaded.");
+        if (active) setDemoApiKey({ key_prefix: payload.key_prefix, status: payload.status });
+      })
+      .catch((error: unknown) => {
+        if (active) setApiGatewayError(error instanceof Error ? error.message : String(error));
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/insurers")
+      .then(async (response) => {
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.message || "Unable to load insurer directory.");
+        setLiveInsurers(payload);
+      })
+      .catch((error: unknown) => {
+        setErrorMessage(error instanceof Error ? error.message : String(error));
+      });
+  }, []);
 
   const handleFileUpload = async (files: FileList | File[]) => {
     try {
@@ -162,6 +196,22 @@ export const NewClaimPage: React.FC<NewClaimPageProps> = ({
     setDiagnosis("Dengue Fever");
   };
 
+  const applyDengueTrap = () => {
+    setSelectedSampleFiles(["01_clinical_summary.pdf", "03_discharge_summary.pdf", "04_itemized_estimate.pdf"]);
+    setUploadedFiles([]);
+    setDiagnosis("Dengue Fever");
+    setPolicyCode("A1");
+    setInsurer("Fictional Insurer A");
+  };
+
+  const applyCataractTrap = () => {
+    setSelectedSampleFiles(["01_clinical_summary.pdf", "03_discharge_summary.pdf", "04_itemized_estimate.pdf"]);
+    setUploadedFiles([]);
+    setDiagnosis("Cataract");
+    setPolicyCode("B1");
+    setInsurer("Fictional Insurer B");
+  };
+
   const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setErrorMessage(null);
@@ -177,6 +227,7 @@ export const NewClaimPage: React.FC<NewClaimPageProps> = ({
       claim_type: claimType,
       relevant_date: admissionDate,
       diagnosis,
+      estimated_amount: estimatedAmount,
       care_setting: careSetting,
       force_fallback: forceFallback,
       uploaded_files: uploadedFiles,
@@ -194,7 +245,7 @@ export const NewClaimPage: React.FC<NewClaimPageProps> = ({
             STEP 01 OF 04 · DOCUMENT UPLOAD & INGESTION
           </div>
           <h1 className="font-heading font-extrabold text-3xl sm:text-4xl text-[#0A0A0A] tracking-tight">
-            Upload Hospital Claim Documents
+            Pre-Submission Claim Firewall
           </h1>
           <p className="text-xs sm:text-sm text-[#475569] font-sans max-w-2xl">
             Upload raw PDF documents. ClaimKavach's local PyMuPDF & OCR pipeline automatically extracts
@@ -203,51 +254,37 @@ export const NewClaimPage: React.FC<NewClaimPageProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={() => onLaunchDemoScenario("perfect")}
-            className="px-4 py-2.5 rounded-full bg-[#F0FDF4] border border-[#BBF7D0] text-[#16834A] font-mono text-xs font-bold tracking-wider hover:bg-[#16834A] hover:text-white transition-all flex items-center gap-2 cursor-pointer shadow-xs"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-[#16834A]" />
-            PRELOAD BENCHMARK CASE (100% PASS)
-          </button>
-        </div>
+        <div className="flex flex-wrap items-center gap-2 shrink-0"><span className="rounded-full border border-[#BFDBFE] bg-white px-3 py-2 text-[10px] font-bold text-[#0052FF]">IRDAI SLA: 01h Cashless | 03h Discharge</span><span className="rounded-full bg-[#0B192C] px-3 py-2 text-[10px] font-bold text-white">NHCX v1 FHIR R4</span><button type="button" onClick={() => onNavigate("developer-portal")} className="rounded-full border border-[#BBF7D0] bg-[#F0FDF4] px-3 py-2 text-[10px] font-bold text-[#15803D] hover:border-[#15803D]">{apiGatewayError ? "API Gateway: Unavailable" : `API Gateway: ${demoApiKey?.status === "active" ? "Active" : "Loading"} (${demoApiKey?.key_prefix || "ck_test_••••"})`}</button></div>
       </div>
 
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[#CBD5E1] bg-white p-3 shadow-[0_10px_30px_-10px_rgba(11,25,44,.08)]"><span className="mr-1 text-xs font-bold text-[#475569]">Quick Demo Presets:</span><button type="button" onClick={applyDengueTrap} className="rounded-full border border-[#FECACA] bg-[#FEF2F2] px-3 py-1.5 text-[11px] font-bold text-[#DC2626]">Simulate Dengue Trap (Missing NS1)</button><button type="button" onClick={applyCataractTrap} className="rounded-full border border-[#FDE68A] bg-[#FFFBEB] px-3 py-1.5 text-[11px] font-bold text-[#A16207]">Simulate Cataract Trap (Missing IOL Sticker)</button><button type="button" onClick={() => onLaunchDemoScenario("perfect")} className="rounded-full border border-[#BBF7D0] bg-[#F0FDF4] px-3 py-1.5 text-[11px] font-bold text-[#15803D]">Simulate Verified Claim</button></div>
+
       {/* Guided Workflow Stepper Bar */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
         <div className="p-3 border-t-4 border-[#0022FF] bg-[#F0F3FF] rounded-xs">
           <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-[#0022FF]">
-            <span>01.</span>
-            <span>Upload Documents</span>
+            <span>1.</span>
+            <span>Local PII Masking</span>
           </div>
           <p className="text-[11px] text-[#475569] mt-0.5 font-mono">Select PDFs & Target Payer</p>
         </div>
 
         <div className="p-3 border-t-4 border-[#D9D9D9] bg-[#F5F5F5] opacity-60 rounded-xs">
           <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-[#64748B]">
-            <span>02.</span>
-            <span>AI Extraction</span>
+            <span>2.</span>
+            <span>SQLite Deterministic Rule Check</span>
           </div>
           <p className="text-[11px] text-[#64748B] mt-0.5 font-mono">PyMuPDF / OCR & PII Masking</p>
         </div>
 
         <div className="p-3 border-t-4 border-[#D9D9D9] bg-[#F5F5F5] opacity-60 rounded-xs">
           <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-[#64748B]">
-            <span>03.</span>
-            <span>Audit & Provenance</span>
+            <span>3.</span>
+            <span>FHIR R4 Bundle Gate</span>
           </div>
           <p className="text-[11px] text-[#64748B] mt-0.5 font-mono">Rules Checklist & Inline Dispositions</p>
         </div>
 
-        <div className="p-3 border-t-4 border-[#D9D9D9] bg-[#F5F5F5] opacity-60 rounded-xs">
-          <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-[#64748B]">
-            <span>04.</span>
-            <span>Gated FHIR R4</span>
-          </div>
-          <p className="text-[11px] text-[#64748B] mt-0.5 font-mono">Bundle JSON & Mock NHCX Gateway</p>
-        </div>
       </div>
 
       {/* Error Alert */}
@@ -278,19 +315,33 @@ export const NewClaimPage: React.FC<NewClaimPageProps> = ({
                   Insurer & Policy
                 </label>
                 <select
-                  value={policyCode}
+                  value={selectedInsurerId || insurer}
                   onChange={(e) => {
-                    const code = e.target.value;
-                    setPolicyCode(code);
-                    const found = appState.policy_configs.find((p) => p.policy_code === code);
-                    if (found) setInsurer(found.insurer);
+                    const value = e.target.value;
+                    const selected = liveInsurers.find((item) => item.id === value);
+                    if (selected) {
+                      setSelectedInsurerId(selected.id);
+                      setInsurer(selected.company_name);
+                      setPolicyCode(selected.policies[0]?.policy_name || "");
+                    } else {
+                      setSelectedInsurerId("");
+                      setInsurer(value);
+                    }
                   }}
                   className="w-full px-3 py-2 bg-white border border-[#D9D9D9] rounded-xs font-bold text-[#0A0A0A] focus:border-[#0022FF] focus:outline-none"
                 >
-                  {appState.policy_configs.map((pc) => (
-                    <option key={pc.policy_code} value={pc.policy_code}>
-                      {pc.insurer} — Policy {pc.policy_code}
-                    </option>
+                  {[...new Set(appState.policy_configs.map((p) => p.insurer))].map((name) => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                  {liveInsurers.map((item) => <option key={item.id} value={item.id}>{item.company_name}</option>)}
+                </select>
+                <select
+                  value={policyCode}
+                  onChange={(e) => setPolicyCode(e.target.value)}
+                  className="mt-2 w-full px-3 py-2 bg-white border border-[#D9D9D9] rounded-xs font-bold text-[#0A0A0A] focus:border-[#0022FF] focus:outline-none"
+                >
+                  {(liveInsurers.find((item) => item.id === selectedInsurerId)?.policies || appState.policy_configs.filter((p) => p.insurer === insurer).map((p) => ({ policy_name: p.policy_code }))).map((policy) => (
+                    <option key={policy.policy_name} value={policy.policy_name}>{policy.policy_name}</option>
                   ))}
                 </select>
               </div>
@@ -352,6 +403,23 @@ export const NewClaimPage: React.FC<NewClaimPageProps> = ({
                   <option value="inpatient">Inpatient Stay (IMP)</option>
                   <option value="daycare">Daycare (SS)</option>
                 </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="font-bold uppercase tracking-wider text-[#0A0A0A] block">
+                  Requested Claim Amount (INR)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={estimatedAmount}
+                  onChange={(e) => setEstimatedAmount(e.target.value)}
+                  placeholder="e.g. 42500"
+                  className="w-full px-3 py-2 bg-white border border-[#D9D9D9] rounded-xs text-[#0A0A0A] focus:border-[#0022FF] focus:outline-none"
+                />
+                <span className="text-[10px] text-[#64748B]">
+                  Compared with extracted billing evidence where available.
+                </span>
               </div>
             </div>
           </div>

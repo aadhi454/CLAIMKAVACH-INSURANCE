@@ -23,18 +23,18 @@ export const Navbar: React.FC<NavbarProps> = ({
           onClick={() => onNavigate("landing")}
           className="flex items-center gap-3 cursor-pointer group"
         >
-          <ClaimKavachLogo size={38} variant="image" />
+          <ClaimKavachLogo size={38} variant="vector" />
           <div>
             <div className="flex items-center gap-2">
               <span className="font-heading font-extrabold text-xl tracking-tight text-[#0A0A0A]">
                 CLAIM<span className="text-[#0022FF]">KAVACH</span>
               </span>
               <span className="bg-[#F0F3FF] border border-[#0022FF]/30 text-[#0022FF] text-[10px] font-mono px-1.5 py-0.5 font-bold uppercase tracking-wider rounded-xs">
-                ABDM / NHCX READY
+                LOCAL-FIRST · FHIR R4 DRAFTS
               </span>
             </div>
             <p className="text-[11px] text-[#64748B] font-mono uppercase tracking-widest hidden sm:block">
-              Hospital Claim Pre-Submission Intelligence
+              Intelligent Claims Verification
             </p>
           </div>
         </div>
@@ -45,7 +45,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             type="button"
             onClick={() => onNavigate("landing")}
             className={`transition-colors hover:text-[#0022FF] cursor-pointer ${
-              currentView === "landing" ? "text-[#0022FF] font-bold" : "text-[#0A0A0A]"
+            currentView === "landing" ? "text-[#0022FF] font-bold" : "text-[#0A0A0A]"
             }`}
           >
             01. PRODUCT

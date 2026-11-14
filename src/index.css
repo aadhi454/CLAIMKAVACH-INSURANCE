@@ -2,14 +2,14 @@
 
 @layer base {
   :root {
-    --font-heading: "Poppins", -apple-system, BlinkMacSystemFont, sans-serif;
-    --font-sans: "Poppins", -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-heading: "Space Grotesk", "Plus Jakarta Sans", Inter, -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-sans: Inter, "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif;
     --font-display: "Poppins", -apple-system, BlinkMacSystemFont, sans-serif;
     --font-mono: "JetBrains Mono", "Space Mono", ui-monospace, monospace;
 
-    --color-bg-primary: #FFFFFF;
-    --color-text-main: #0A0A0A;
-    --color-electric-blue: #0022FF;
+    --color-bg-primary: #EEF5FC;
+    --color-text-main: #0B192C;
+    --color-electric-blue: #0052FF;
     --color-secondary-blue: #0044FF;
     --color-blue-surface: #F0F3FF;
     --color-neutral-bg: #F5F5F5;
@@ -21,8 +21,8 @@
 
   body {
     font-family: var(--font-sans);
-    color: #0A0A0A;
-    background-color: #FFFFFF;
+    color: #0B192C;
+    background: linear-gradient(135deg, #EEF5FC 0%, #DCE8F6 100%);
     overflow-x: hidden;
     letter-spacing: -0.01em;
   }
@@ -42,6 +42,20 @@
     font-variant-numeric: tabular-nums;
   }
 }
+
+.app-shell, .auth-shell, .landing-shell {
+  background: linear-gradient(135deg, #EEF5FC 0%, #DCE8F6 100%);
+}
+
+.app-shell [class*="bg-white"], .auth-shell [class*="bg-white"] {
+  box-shadow: 0 10px 30px -10px rgba(11, 25, 44, 0.08);
+}
+
+.app-shell [class*="border-[#D9D9D9]"], .auth-shell [class*="border-[#D9D9D9]"] { border-color: #CBD5E1 !important; }
+.app-shell [class*="text-[#0A0A0A]"], .auth-shell [class*="text-[#0A0A0A]"] { color: #0B192C !important; }
+.app-shell [class*="bg-[#0022FF]"], .auth-shell [class*="bg-[#0022FF]"] { background-color: #0052FF !important; }
+.app-shell [class*="text-[#0022FF]"], .auth-shell [class*="text-[#0022FF]"] { color: #0052FF !important; }
+.app-shell [class*="bg-[#F5F5F5]"] { background-color: #F8FAFC !important; }
 
 /* Swiss Editorial & Neo-Brutalist utility classes */
 .bg-grid-pattern {
@@ -67,6 +81,191 @@
 
 .bg-blue-surface {
   background-color: #F0F3FF;
+}
+
+/* Landing command-center theme. The product surface is intentionally darker
+   than the internal data-entry screens so the public value proposition reads
+   as an operational control plane, not a document template. */
+.landing-shell {
+  background:
+    radial-gradient(circle at 78% 12%, rgba(0, 34, 255, 0.06), transparent 28rem),
+    radial-gradient(circle at 12% 42%, rgba(14, 165, 233, 0.06), transparent 32rem),
+    #FFFFFF;
+}
+
+.landing-shell .bg-white,
+.landing-shell .bg-\[\#FFFFFF\],
+.landing-shell .bg-\[\#F5F5F5\] {
+  background-color: #FFFFFF !important;
+}
+
+.landing-shell .bg-\[\#F0F3FF\] {
+  background-color: #F0F3FF !important;
+}
+
+.landing-shell .text-\[\#0A0A0A\] {
+  color: #0A0A0A !important;
+}
+
+.landing-shell .text-\[\#475569\],
+.landing-shell .text-\[\#64748B\] {
+  color: #475569 !important;
+}
+
+.landing-shell .border-\[\#D9D9D9\] {
+  border-color: #D9D9D9 !important;
+}
+
+.landing-shell .border-\[\#0A0A0A\] {
+  border-color: #0A0A0A !important;
+}
+
+.landing-shell .text-\[\#0022FF\],
+.landing-shell .text-\[\#0044FF\] {
+  color: #0022FF !important;
+}
+
+.landing-shell .bg-\[\#0022FF\] {
+  background-color: #0022FF !important;
+}
+
+.landing-shell .bg-\[\#0A0A0A\] {
+  background-color: #0A0A0A !important;
+  color: #FFFFFF !important;
+}
+
+.landing-shell .shadow-\[8px_8px_0px_0px_\#0A0A0A\] {
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35) !important;
+}
+
+.landing-shell .bg-grid-pattern {
+  background-image: linear-gradient(rgba(0, 34, 255, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 34, 255, 0.05) 1px, transparent 1px);
+  background-size: 42px 42px;
+}
+
+.shield-stage {
+  min-height: 255px;
+  position: relative;
+  display: grid;
+  place-items: center;
+  perspective: 900px;
+  isolation: isolate;
+}
+
+.shield-face {
+  position: relative;
+  z-index: 3;
+  transform: rotateX(7deg) rotateY(-16deg) translateZ(30px);
+  filter: drop-shadow(18px 24px 12px rgba(0, 0, 0, 0.42)) drop-shadow(0 0 28px rgba(34, 211, 238, 0.32));
+  animation: shield-float 5s ease-in-out infinite;
+}
+
+.shield-face::after {
+  content: "";
+  position: absolute;
+  inset: 12% 18% 8%;
+  z-index: -1;
+  border-radius: 45%;
+  background: linear-gradient(135deg, rgba(103, 232, 249, 0.45), rgba(7, 17, 31, 0.05) 62%);
+  transform: translateZ(-18px) scale(1.08);
+  filter: blur(7px);
+}
+
+.shield-orbit {
+  position: absolute;
+  width: 215px;
+  height: 215px;
+  border: 1px solid rgba(103, 232, 249, 0.42);
+  border-radius: 50%;
+  transform: rotateX(64deg) rotateZ(-20deg);
+  box-shadow: 0 0 25px rgba(34, 211, 238, 0.12);
+}
+
+.shield-orbit-one {
+  animation: shield-orbit 8s linear infinite;
+}
+
+.shield-orbit-two {
+  width: 172px;
+  height: 238px;
+  border-color: rgba(37, 99, 235, 0.4);
+  transform: rotateY(68deg) rotateZ(18deg);
+  animation: shield-orbit-reverse 10s linear infinite;
+}
+
+.shield-beam {
+  position: absolute;
+  width: 1px;
+  height: 230px;
+  background: linear-gradient(transparent, rgba(103, 232, 249, 0.8), transparent);
+  box-shadow: 0 0 18px rgba(103, 232, 249, 0.65);
+  transform: rotateZ(38deg);
+  opacity: 0.7;
+}
+
+.shield-core-label {
+  position: absolute;
+  z-index: 4;
+  bottom: 3px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border: 1px solid rgba(103, 232, 249, 0.3);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #475569;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.12);
+  font: 700 10px/1 var(--font-mono);
+  letter-spacing: 0.12em;
+}
+
+@keyframes shield-float {
+  0%, 100% { transform: rotateX(7deg) rotateY(-16deg) translate3d(0, 0, 30px); }
+  50% { transform: rotateX(3deg) rotateY(-8deg) translate3d(0, -10px, 38px); }
+}
+
+@keyframes shield-orbit {
+  to { transform: rotateX(64deg) rotateZ(340deg); }
+}
+
+@keyframes shield-orbit-reverse {
+  to { transform: rotateY(68deg) rotateZ(-342deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shield-face,
+  .shield-orbit-one,
+  .shield-orbit-two {
+    animation: none;
+  }
+}
+
+.command-center {
+  background:
+    radial-gradient(circle at 75% 0%, rgba(0, 34, 255, 0.05), transparent 25rem),
+    #FFFFFF;
+  color: #0A0A0A;
+}
+
+.command-center .bg-white,
+.command-center .bg-\[\#FFFFFF\],
+.command-center .bg-\[\#F5F5F5\] {
+  background-color: #FFFFFF !important;
+}
+
+.command-center .text-\[\#0A0A0A\] {
+  color: #0A0A0A !important;
+}
+
+.command-center .text-\[\#475569\],
+.command-center .text-\[\#64748B\] {
+  color: #475569 !important;
+}
+
+.command-center .border-\[\#D9D9D9\],
+.command-center .divide-\[\#D9D9D9\] > :not([hidden]) ~ :not([hidden]) {
+  border-color: #D9D9D9 !important;
 }
 
 .badge-tag {

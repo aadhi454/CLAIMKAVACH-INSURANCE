@@ -168,6 +168,7 @@ class ClaimPacket(CompatModel):
     relevant_date: str = "2026-10-10"
     care_setting: str = "inpatient"
     diagnosis: str = ""
+    estimated_amount: str = ""
     patient_reference: str = ""
     patient_name: str = ""
     status: str = "DRAFT"

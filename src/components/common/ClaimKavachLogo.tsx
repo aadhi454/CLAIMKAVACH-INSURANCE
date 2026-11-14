@@ -35,7 +35,7 @@ export const ClaimKavachLogo: React.FC<ClaimKavachLogoProps> = ({
           xmlns="http://www.w3.org/2000/svg"
           className="shrink-0 drop-shadow-xs select-none"
         >
-          {/* Outer Shield with Curved Top Crest and Tapering Point */}
+          {/* Shield and verification path stay legible at sidebar and favicon scale. */}
           <path
             d="M 28 26 
                C 64 42, 85 40, 100 26 
@@ -44,17 +44,14 @@ export const ClaimKavachLogo: React.FC<ClaimKavachLogoProps> = ({
                C 28 152, 24 96, 28 26 Z"
             fill={color}
           />
-          {/* Centered Pure White Heart */}
           <path
-            d="M 100 148 
-               C 96 144, 68 116, 68 88 
-               C 68 73, 79 62, 94 62 
-               C 99 62, 100 66, 100 66 
-               C 100 66, 101 62, 106 62 
-               C 121 62, 132 73, 132 88 
-               C 132 116, 104 144, 100 148 Z"
-            fill="#FFFFFF"
+            d="M 63 112 L 87 136 L 140 78"
+            stroke="#FFFFFF"
+            strokeWidth="16"
+            strokeLinecap="round"
+            strokeLinejoin="round"
           />
+          <path d="M 58 54 H 142" stroke="#67E8F9" strokeWidth="7" strokeLinecap="round" opacity="0.9" />
         </svg>
       )}
 

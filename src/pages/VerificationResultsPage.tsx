@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ShieldCheck,
   CheckCircle2,
@@ -34,6 +34,7 @@ interface VerificationResultsPageProps {
   onRunMockNhcx: (mode: "auto" | "force_failure") => Promise<Record<string, unknown> | null>;
   onReevaluateRules: () => Promise<void>;
   onDownloadFhirBundle: () => void;
+  onDispatchClaim: (insurerId: string, policyName: string) => Promise<unknown>;
 }
 
 export const VerificationResultsPage: React.FC<VerificationResultsPageProps> = ({
@@ -44,6 +45,7 @@ export const VerificationResultsPage: React.FC<VerificationResultsPageProps> = (
   onRunMockNhcx,
   onReevaluateRules,
   onDownloadFhirBundle,
+  onDispatchClaim,
 }) => {
   const [filter, setFilter] = useState<"ALL" | "ISSUES" | "PASS">("ALL");
   const [activeTab, setActiveTab] = useState<"checklist" | "fhir" | "provenance" | "trace" | "traps">("checklist");
@@ -57,6 +59,31 @@ export const VerificationResultsPage: React.FC<VerificationResultsPageProps> = (
   const [fieldRationale, setFieldRationale] = useState("Verified against physical hospital chart.");
   const [mockNhcxResponse, setMockNhcxResponse] = useState<Record<string, unknown> | null>(null);
   const [isSubmittingAction, setIsSubmittingAction] = useState(false);
+  const [insurers, setInsurers] = useState<Array<{ id: string; company_name: string; policies: Array<{ id: string; name: string; insurer_id: string; policy_name?: string }> }>>([]);
+  const [selectedInsurerId, setSelectedInsurerId] = useState("");
+  const [selectedPolicy, setSelectedPolicy] = useState("");
+  const [dispatchNotice, setDispatchNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/insurers")
+      .then(async (response) => {
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.message || "Unable to load insurers.");
+        setInsurers(payload);
+        if (payload[0]) {
+          setSelectedInsurerId(payload[0].id);
+        }
+      })
+      .catch((error: unknown) => setDispatchNotice(error instanceof Error ? error.message : String(error)));
+  }, []);
+
+  useEffect(() => {
+    const selectedInsurer = insurers.find((insurer) => insurer.id === selectedInsurerId);
+    const firstPolicy = selectedInsurer?.policies[0];
+    if (!selectedInsurer) return;
+    const policyNames = selectedInsurer.policies.map((policy) => policy.name || policy.policy_name || "");
+    if (!policyNames.includes(selectedPolicy)) setSelectedPolicy(firstPolicy?.name || firstPolicy?.policy_name || "");
+  }, [insurers, selectedInsurerId, selectedPolicy]);
 
   const activeClaim = appState.active_claim;
   const findings = appState.findings;
@@ -138,6 +165,27 @@ export const VerificationResultsPage: React.FC<VerificationResultsPageProps> = (
   }
 
   const isGateReady = appState.gate.allowed;
+  const selectedInsurer = insurers.find((insurer) => insurer.id === selectedInsurerId);
+  const availablePolicies = selectedInsurer?.policies || [];
+  const actionNeeded = failCount + unresolvedReviewCount;
+  const handleInsurerChange = (insurerId: string) => {
+    setSelectedInsurerId(insurerId);
+    const insurer = insurers.find((item) => item.id === insurerId);
+    setSelectedPolicy(insurer?.policies[0]?.name || insurer?.policies[0]?.policy_name || "");
+  };
+  const handleDispatch = async () => {
+    if (actionNeeded !== 0 || !selectedInsurerId || !selectedPolicy) return;
+    setIsSubmittingAction(true);
+    setDispatchNotice(null);
+    try {
+      await onDispatchClaim(selectedInsurerId, selectedPolicy);
+      setDispatchNotice(`Transmitted to ${selectedInsurer?.company_name || "insurer"} Inbox`);
+    } catch (error: unknown) {
+      setDispatchNotice(error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsSubmittingAction(false);
+    }
+  };
 
   return (
     <div className="max-w-[1360px] mx-auto p-6 md:p-8 space-y-8 font-sans">
@@ -260,6 +308,29 @@ export const VerificationResultsPage: React.FC<VerificationResultsPageProps> = (
                 Export FHIR R4 Bundle
               </button>
             )}
+          </div>
+        </div>
+        <div className="rounded-lg border border-[#BFDBFE] bg-[#EFF6FF] p-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <div className="text-[10px] font-mono font-bold uppercase tracking-widest text-[#0052FF]">HOSPITAL → INSURER DISPATCH</div>
+              <p className="mt-1 text-sm font-semibold text-[#0B192C]">{isGateReady ? "Validated claim is ready for insurer transmission." : "Resolve missing rules before sending to insurer."}</p>
+              {dispatchNotice && <p className="mt-1 text-xs font-mono font-bold text-[#15803D]">{dispatchNotice}</p>}
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <select disabled={actionNeeded !== 0} value={selectedInsurerId} onChange={(event) => handleInsurerChange(event.target.value)} className="rounded-lg border border-[#CBD5E1] bg-white px-3 py-2 text-xs">
+                <option value="">Select insurer</option>
+                {insurers.map((insurer) => <option key={insurer.id} value={insurer.id}>{insurer.company_name}</option>)}
+              </select>
+              <select disabled={actionNeeded !== 0} value={selectedPolicy} onChange={(event) => setSelectedPolicy(event.target.value)} className="rounded-lg border border-[#CBD5E1] bg-white px-3 py-2 text-xs">
+                <option value="">Select policy</option>
+                {availablePolicies.map((policy) => {
+                  const policyName = policy.name || policy.policy_name || "";
+                  return <option key={policy.id} value={policyName}>{policyName}</option>;
+                })}
+              </select>
+              <button type="button" disabled={actionNeeded !== 0 || !selectedInsurerId || !selectedPolicy || isSubmittingAction} onClick={() => void handleDispatch()} className="rounded-lg bg-[#0052FF] px-4 py-2 text-xs font-mono font-bold text-white disabled:cursor-not-allowed disabled:bg-[#94A3B8]">SEND VALIDATED CLAIM →</button>
+            </div>
           </div>
         </div>
       </div>

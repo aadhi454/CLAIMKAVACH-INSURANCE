@@ -14,7 +14,11 @@ import warnings
 warnings.filterwarnings("ignore", category=FutureWarning, module="fitz")
 import fitz  # PyMuPDF
 from PIL import Image
-import pytesseract
+
+try:
+    import pytesseract
+except ImportError:
+    pytesseract = None  # type: ignore[assignment]
 
 from models import ExtractedDoc, ProvenanceField, utc_now_iso
 from pii_masker import GLOBAL_TOKEN_VAULT, ClaimTokenVault
@@ -61,7 +65,7 @@ def normalize_date_to_iso(raw_date: str) -> str:
 
 
 def is_tesseract_available(force_unavailable: bool = False) -> bool:
-    if force_unavailable:
+    if force_unavailable or pytesseract is None:
         return False
     return shutil.which("tesseract") is not None
 

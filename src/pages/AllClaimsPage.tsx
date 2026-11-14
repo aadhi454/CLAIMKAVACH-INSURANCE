@@ -1,181 +1,38 @@
-import React, { useState } from "react";
-import {
-  Search,
-  Filter,
-  PlusCircle,
-  CheckCircle2,
-  AlertTriangle,
-  FileText,
-  ArrowRight,
-  ExternalLink,
-} from "lucide-react";
-import { AppState, PageView } from "../types/claim";
+import React, { useEffect, useMemo, useState } from "react";
+import { ArrowRight, ChevronLeft, ChevronRight, Filter, Plus, Search } from "lucide-react";
+import { AppState, ClaimPacket, PageView } from "../types/claim";
 
-interface AllClaimsPageProps {
-  appState: AppState;
-  onNavigate: (view: PageView) => void;
-  onSelectClaim: (claimId: string) => void;
-}
+interface Props { appState: AppState; onNavigate: (view: PageView) => void; onSelectClaim: (claimId: string) => void; }
+const statusLabel = (claim: ClaimPacket) => claim.status === "READY_FOR_FHIR" || claim.status === "VERIFIED" ? "Verification complete" : claim.status === "DRAFT" ? "Draft" : "Needs attention";
+const amount = (claim: ClaimPacket) => Number(claim.estimated_amount || 0) || 0;
+const formatMoney = (value: number) => value ? new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(value) : "Not captured";
 
-export const AllClaimsPage: React.FC<AllClaimsPageProps> = ({
-  appState,
-  onNavigate,
-  onSelectClaim,
-}) => {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedInsurer, setSelectedInsurer] = useState("ALL");
-  const [selectedStatus, setSelectedStatus] = useState("ALL");
-
-  const claims = appState.claims || [];
-
-  const filteredClaims = claims.filter((c) => {
-    const matchesSearch =
-      c.claim_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (c.diagnosis && c.diagnosis.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (c.patient_name && c.patient_name.toLowerCase().includes(searchQuery.toLowerCase()));
-
-    const matchesInsurer =
-      selectedInsurer === "ALL" || c.insurer.toLowerCase().includes(selectedInsurer.toLowerCase());
-
-    const isReady = c.status === "READY_FOR_FHIR" || c.status === "VERIFIED";
-    const matchesStatus =
-      selectedStatus === "ALL" ||
-      (selectedStatus === "READY" && isReady) ||
-      (selectedStatus === "REVIEW" && !isReady);
-
-    return matchesSearch && matchesInsurer && matchesStatus;
-  });
-
-  return (
-    <div className="max-w-[1360px] mx-auto p-6 md:p-8 space-y-6 font-sans">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#D9D9D9]">
-        <div className="space-y-1">
-          <div className="text-xs font-mono font-bold text-[#64748B] uppercase tracking-widest">
-            REGISTRY & AUDIT ARCHIVE
-          </div>
-          <h1 className="font-heading font-extrabold text-2xl sm:text-3xl text-[#0A0A0A] tracking-tight">
-            All Hospital Claims ({claims.length})
-          </h1>
-          <p className="text-xs text-[#64748B]">
-            Search, filter, and inspect readiness audit records across all evaluated patient claims.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => onNavigate("new-claim")}
-          className="px-5 py-2.5 rounded-full bg-[#0022FF] hover:bg-[#0044FF] text-white text-xs font-mono font-bold tracking-wider transition-all shadow-sm flex items-center gap-2 cursor-pointer shrink-0"
-        >
-          <PlusCircle className="w-4 h-4" />
-          NEW CLAIM WORKFLOW
-        </button>
-      </div>
-
-      {/* Filter and Search Bar */}
-      <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 font-mono text-xs">
-        <div className="sm:col-span-6 relative">
-          <Search className="w-4 h-4 text-[#64748B] absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by Claim ID, Diagnosis, or Patient..."
-            className="w-full pl-9 pr-3 py-2 bg-white border border-[#D9D9D9] rounded-xs text-[#0A0A0A] focus:outline-none focus:border-[#0022FF]"
-          />
-        </div>
-
-        <div className="sm:col-span-3">
-          <select
-            value={selectedInsurer}
-            onChange={(e) => setSelectedInsurer(e.target.value)}
-            className="w-full px-3 py-2 bg-white border border-[#D9D9D9] rounded-xs text-[#0A0A0A] focus:outline-none focus:border-[#0022FF]"
-          >
-            <option value="ALL">All Insurers</option>
-            <option value="Insurer A">Insurer A (Comprehensive)</option>
-            <option value="Insurer B">Insurer B (Standard)</option>
-          </select>
-        </div>
-
-        <div className="sm:col-span-3">
-          <select
-            value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
-            className="w-full px-3 py-2 bg-white border border-[#D9D9D9] rounded-xs text-[#0A0A0A] focus:outline-none focus:border-[#0022FF]"
-          >
-            <option value="ALL">All Readiness States</option>
-            <option value="READY">100% Ready for FHIR</option>
-            <option value="REVIEW">Needs Review / Action</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Structured Neo-Brutalist Table */}
-      <div className="bg-white border-2 border-[#0A0A0A] rounded-xs shadow-[4px_4px_0px_0px_#0A0A0A] overflow-hidden">
-        <table className="w-full text-left font-mono text-xs border-collapse">
-          <thead>
-            <tr className="bg-[#0A0A0A] text-white border-b-2 border-[#0A0A0A]">
-              <th className="p-3.5 font-bold uppercase tracking-wider">Claim Reference</th>
-              <th className="p-3.5 font-bold uppercase tracking-wider">Payer & Policy</th>
-              <th className="p-3.5 font-bold uppercase tracking-wider">Primary Diagnosis</th>
-              <th className="p-3.5 font-bold uppercase tracking-wider">Admission Date</th>
-              <th className="p-3.5 font-bold uppercase tracking-wider">Readiness Status</th>
-              <th className="p-3.5 font-bold uppercase tracking-wider text-right">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[#D9D9D9]">
-            {filteredClaims.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="p-12 text-center text-[#64748B]">
-                  No matching claims found. Try adjusting your search query or filters.
-                </td>
-              </tr>
-            ) : (
-              filteredClaims.map((claim) => {
-                const isReady =
-                  claim.status === "READY_FOR_FHIR" || claim.status === "VERIFIED";
-                return (
-                  <tr
-                    key={claim.claim_id}
-                    onClick={() => {
-                      onSelectClaim(claim.claim_id);
-                      onNavigate("results");
-                    }}
-                    className="hover:bg-[#F0F3FF] cursor-pointer transition-colors group"
-                  >
-                    <td className="p-3.5 font-bold text-[#0A0A0A] group-hover:text-[#0022FF]">
-                      {claim.claim_id}
-                    </td>
-                    <td className="p-3.5 text-[#475569]">
-                      {claim.insurer} · <strong>{claim.policy_code}</strong>
-                    </td>
-                    <td className="p-3.5 text-[#0A0A0A] font-semibold truncate max-w-[200px]">
-                      {claim.diagnosis || "Auto-detecting"}
-                    </td>
-                    <td className="p-3.5 text-[#64748B]">{claim.relevant_date}</td>
-                    <td className="p-3.5">
-                      {isReady ? (
-                        <span className="inline-flex items-center gap-1.5 text-[#16834A] font-bold">
-                          <CheckCircle2 className="w-3.5 h-3.5" /> READY FOR GATEWAY
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 text-[#E6A000] font-bold">
-                          <AlertTriangle className="w-3.5 h-3.5" /> ACTION NEEDED
-                        </span>
-                      )}
-                    </td>
-                    <td className="p-3.5 text-right">
-                      <span className="text-[#0022FF] group-hover:translate-x-1 inline-block transition-transform font-bold">
-                        Inspect Results →
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
+export const AllClaimsPage: React.FC<Props> = ({ appState, onNavigate, onSelectClaim }) => {
+  const [query, setQuery] = useState(""); const [status, setStatus] = useState("ALL"); const [insurer, setInsurer] = useState("ALL"); const [minimum, setMinimum] = useState(""); const [maximum, setMaximum] = useState(""); const [sort, setSort] = useState<"updated" | "amount" | "reference">("updated"); const [page, setPage] = useState(0);
+  const [dispatchedClaims, setDispatchedClaims] = useState<Array<{ id: string; claim_ref: string; hospital_name: string; policy_name: string; payer_status: string; dispatched_at: string }>>([]);
+  const [dispatchError, setDispatchError] = useState<string | null>(null);
+  useEffect(() => {
+    const loadDispatched = () => fetch("/api/claims/dispatched").then(async (response) => {
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.message || "Unable to load sent claims.");
+      setDispatchedClaims(payload);
+    }).catch((error: unknown) => setDispatchError(error instanceof Error ? error.message : String(error)));
+    void loadDispatched();
+    const timer = window.setInterval(loadDispatched, 10000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const pageSize = 8;
+  const claims = useMemo(() => appState.claims.filter((claim) => {
+    const haystack = [claim.claim_id, claim.patient_name, claim.patient_reference, claim.policy_code, claim.insurer, claim.diagnosis].join(" ").toLowerCase();
+    return haystack.includes(query.toLowerCase()) && (status === "ALL" || statusLabel(claim) === status) && (insurer === "ALL" || claim.insurer === insurer) && (!minimum || amount(claim) >= Number(minimum)) && (!maximum || amount(claim) <= Number(maximum));
+  }).sort((a, b) => sort === "amount" ? amount(b) - amount(a) : sort === "reference" ? a.claim_id.localeCompare(b.claim_id) : (b.updated_at || "").localeCompare(a.updated_at || "")), [appState.claims, query, status, insurer, minimum, maximum, sort]);
+  const pages = Math.max(1, Math.ceil(claims.length / pageSize)); const currentPage = Math.min(page, pages - 1); const visible = claims.slice(currentPage * pageSize, currentPage * pageSize + pageSize);
+  const updateFilter = (callback: () => void) => { callback(); setPage(0); };
+  return <div className="max-w-[1440px] mx-auto p-6 md:p-8 space-y-6">
+    <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4"><div><div className="badge-tag text-[#0369A1]">Claims Workspace · Persisted records</div><h1 className="font-heading font-extrabold text-3xl text-[#102A43] mt-2">Claims that need work</h1><p className="text-sm text-[#627D98] mt-2">Search by claim, claimant, policy, insurer, or diagnosis. Verification outcomes remain separate from payment decisions.</p></div><button type="button" onClick={() => onNavigate("new-claim")} className="inline-flex items-center gap-2 rounded-lg bg-[#0F766E] hover:bg-[#115E59] px-4 py-2.5 text-xs font-mono font-bold text-white"><Plus className="w-4 h-4" /> CREATE CLAIM</button></header>
+    <section className="rounded-xl border border-[#CBD5E1] bg-white p-5"><div className="flex items-center justify-between"><div><div className="text-[10px] font-mono font-bold uppercase tracking-widest text-[#0052FF]">AUDIT LOGS / SENT CLAIMS</div><h2 className="mt-1 font-heading text-xl font-bold text-[#102A43]">Payer status tracking</h2></div><span className="text-xs font-mono text-[#64748B]">{dispatchedClaims.length} transmitted</span></div>{dispatchError && <p className="mt-3 text-xs text-[#DC2626]">{dispatchError}</p>}<div className="mt-4 overflow-x-auto"><table className="w-full min-w-[700px] text-left text-xs"><thead className="bg-[#EEF5FC] font-mono text-[#475569]"><tr><th className="p-3">Claim Ref</th><th className="p-3">Insurer Claim Inbox</th><th className="p-3">Policy</th><th className="p-3">Payer Status</th><th className="p-3">Dispatched</th></tr></thead><tbody className="divide-y divide-[#E2E8F0]">{dispatchedClaims.map((claim) => <tr key={claim.id}><td className="p-3 font-mono font-bold">{claim.claim_ref}</td><td className="p-3">{claim.hospital_name}</td><td className="p-3">{claim.policy_name}</td><td className="p-3"><span className={`rounded-full px-2 py-1 font-mono text-[10px] font-bold ${claim.payer_status === "APPROVED" ? "bg-[#DCFCE7] text-[#15803D]" : claim.payer_status === "QUERY_RAISED" ? "bg-[#FEE2E2] text-[#DC2626]" : "bg-[#EEF5FC] text-[#0052FF]"}`}>{claim.payer_status}</span></td><td className="p-3 text-[#64748B]">{claim.dispatched_at}</td></tr>)}</tbody></table>{!dispatchedClaims.length && <p className="p-6 text-center text-sm text-[#64748B]">Validated claims sent to payers will appear here.</p>}</div></section>
+    <section className="rounded-xl border border-[#D9E2EC] bg-white p-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-3"><div className="relative xl:col-span-2"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#829AB1]" /><input value={query} onChange={(event) => updateFilter(() => setQuery(event.target.value))} placeholder="Claim, claimant, policy…" className="w-full h-10 pl-9 pr-3 rounded-lg border border-[#D9E2EC] text-sm outline-none focus:border-[#0F766E]" /></div><select value={status} onChange={(event) => updateFilter(() => setStatus(event.target.value))} className="h-10 px-3 rounded-lg border border-[#D9E2EC] text-xs text-[#334E68]"><option value="ALL">All statuses</option><option value="Draft">Draft</option><option value="Needs attention">Needs attention</option><option value="Verification complete">Verification complete</option></select><select value={insurer} onChange={(event) => updateFilter(() => setInsurer(event.target.value))} className="h-10 px-3 rounded-lg border border-[#D9E2EC] text-xs text-[#334E68]"><option value="ALL">All insurers</option>{[...new Set(appState.claims.map((claim) => claim.insurer))].map((name) => <option key={name} value={name}>{name}</option>)}</select><input value={minimum} onChange={(event) => updateFilter(() => setMinimum(event.target.value))} type="number" min="0" placeholder="Min amount" className="h-10 px-3 rounded-lg border border-[#D9E2EC] text-xs outline-none focus:border-[#0F766E]" /><input value={maximum} onChange={(event) => updateFilter(() => setMaximum(event.target.value))} type="number" min="0" placeholder="Max amount" className="h-10 px-3 rounded-lg border border-[#D9E2EC] text-xs outline-none focus:border-[#0F766E]" /><div className="xl:col-span-6 flex items-center justify-between pt-1"><span className="inline-flex items-center gap-2 text-[11px] text-[#627D98]"><Filter className="w-3.5 h-3.5" /> {claims.length} matching record(s)</span><label className="text-[11px] text-[#627D98]">Sort <select value={sort} onChange={(event) => setSort(event.target.value as typeof sort)} className="ml-2 h-8 px-2 rounded border border-[#D9E2EC] text-[#334E68]"><option value="updated">Last updated</option><option value="amount">Amount</option><option value="reference">Reference</option></select></label></div></section>
+    <section className="rounded-xl border border-[#D9E2EC] overflow-x-auto bg-white"><table className="w-full min-w-[940px] text-left"><thead className="bg-[#F8FAFC] border-b border-[#D9E2EC]"><tr className="text-[10px] font-mono text-[#627D98] uppercase tracking-wider"><th className="p-4">Claim reference</th><th className="p-4">Claimant & policy</th><th className="p-4">Insurer</th><th className="p-4">Diagnosis</th><th className="p-4">Amount</th><th className="p-4">Submitted</th><th className="p-4">Verification</th><th className="p-4" /></tr></thead><tbody className="divide-y divide-[#E6EEF5]">{visible.length ? visible.map((claim) => { const label = statusLabel(claim); return <tr key={claim.claim_id} className="hover:bg-[#F8FAFC]"><td className="p-4 font-mono text-xs font-bold text-[#102A43]">{claim.claim_id}</td><td className="p-4"><div className="text-xs font-semibold text-[#334E68]">{claim.patient_name || claim.patient_reference || "Masked claimant"}</div><div className="text-[11px] text-[#829AB1] mt-1">{claim.policy_code}</div></td><td className="p-4 text-xs text-[#486581]">{claim.insurer}</td><td className="p-4 text-xs text-[#486581] max-w-[180px] truncate">{claim.diagnosis || "Not captured"}</td><td className="p-4 text-xs font-semibold text-[#334E68]">{formatMoney(amount(claim))}</td><td className="p-4 text-xs text-[#627D98]">{claim.relevant_date}</td><td className="p-4"><span className={`text-[10px] font-mono font-bold px-2 py-1 rounded-full ${label === "Verification complete" ? "bg-[#F0FDF4] text-[#15803D]" : label === "Draft" ? "bg-[#F0F9FF] text-[#0369A1]" : "bg-[#FFFBEB] text-[#B45309]"}`}>{label}</span></td><td className="p-4"><button type="button" onClick={() => { onSelectClaim(claim.claim_id); onNavigate("results"); }} className="inline-flex items-center gap-1 text-[11px] font-mono font-bold text-[#0F766E]">OPEN <ArrowRight className="w-3.5 h-3.5" /></button></td></tr>; }) : <tr><td colSpan={8} className="p-12 text-center text-sm text-[#627D98]">No claims match this view.</td></tr>}</tbody></table></section>
+    <footer className="flex items-center justify-between"><span className="text-xs text-[#627D98]">Page {currentPage + 1} of {pages}</span><div className="flex gap-2"><button type="button" disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)} className="p-2 rounded border border-[#D9E2EC] disabled:opacity-40"><ChevronLeft className="w-4 h-4" /></button><button type="button" disabled={currentPage >= pages - 1} onClick={() => setPage(currentPage + 1)} className="p-2 rounded border border-[#D9E2EC] disabled:opacity-40"><ChevronRight className="w-4 h-4" /></button></div></footer>
+  </div>;
 };

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import {
   ShieldCheck,
   CheckCircle2,
@@ -18,6 +18,7 @@ interface VerificationProgressPageProps {
   policyCode: string;
   diagnosis: string;
   claimAmount?: string;
+  isProcessing: boolean;
   onVerificationComplete: () => void;
   error?: string | null;
   onRetry?: () => void;
@@ -68,33 +69,12 @@ export const VerificationProgressPage: React.FC<VerificationProgressPageProps> =
   policyCode,
   diagnosis,
   claimAmount,
+  isProcessing,
   onVerificationComplete,
   error,
   onRetry,
 }) => {
-  const [currentStageIdx, setCurrentStageIdx] = useState(0);
-
-  useEffect(() => {
-    if (error) return;
-
-    const interval = setInterval(() => {
-      setCurrentStageIdx((prev) => {
-        if (prev < STAGES.length - 1) {
-          return prev + 1;
-        } else {
-          clearInterval(interval);
-          setTimeout(() => {
-            onVerificationComplete();
-          }, 800);
-          return prev;
-        }
-      });
-    }, 450);
-
-    return () => clearInterval(interval);
-  }, [error]);
-
-  const progressPct = Math.round(((currentStageIdx + 1) / STAGES.length) * 100);
+  const progressPct = isProcessing ? 8 : 100;
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center p-6">
@@ -135,7 +115,9 @@ export const VerificationProgressPage: React.FC<VerificationProgressPageProps> =
           </div>
           <div>
             <span className="text-[10px] text-[#64748B] block">AMOUNT:</span>
-            <span className="font-bold text-[#0A0A0A] block">₹{claimAmount || "42,500"}</span>
+            <span className="font-bold text-[#0A0A0A] block">
+              {claimAmount ? `₹${claimAmount}` : "Not captured"}
+            </span>
           </div>
         </div>
 
@@ -143,14 +125,16 @@ export const VerificationProgressPage: React.FC<VerificationProgressPageProps> =
         <div className="space-y-2">
           <div className="flex items-center justify-between text-xs font-mono">
             <span className="text-[#64748B]">
-              STAGE {currentStageIdx + 1} OF {STAGES.length}
+              {isProcessing
+                ? "LOCAL BACKEND EXECUTION IN PROGRESS"
+                : "BACKEND VERIFICATION COMPLETE"}
             </span>
-            <span className="font-bold text-[#0022FF]">{progressPct}%</span>
+            <span className="font-bold text-[#0022FF]">{isProcessing ? `${progressPct}%` : "100%"}</span>
           </div>
           <div className="w-full bg-[#F5F5F5] h-2.5 rounded-full overflow-hidden border border-[#D9D9D9]">
             <div
               className="bg-[#0022FF] h-full transition-all duration-300 ease-out"
-              style={{ width: `${progressPct}%` }}
+              style={{ width: `${isProcessing ? progressPct : 100}%` }}
             />
           </div>
         </div>
@@ -177,8 +161,8 @@ export const VerificationProgressPage: React.FC<VerificationProgressPageProps> =
           /* Animated Stages List */
           <div className="space-y-2.5">
             {STAGES.map((s, idx) => {
-              const isPast = idx < currentStageIdx;
-              const isCurrent = idx === currentStageIdx;
+              const isPast = !isProcessing;
+              const isCurrent = isProcessing && idx === 0;
               const Icon = s.icon;
               return (
                 <div
@@ -204,7 +188,7 @@ export const VerificationProgressPage: React.FC<VerificationProgressPageProps> =
                     <div className={`font-bold ${isCurrent ? "text-[#0022FF]" : "text-[#0A0A0A]"}`}>
                       0{s.step}. {s.title}
                     </div>
-                    {isCurrent && <div className="text-[11px] text-[#475569]">{s.detail}</div>}
+                    {(isCurrent || !isProcessing) && <div className="text-[11px] text-[#475569]">{s.detail}</div>}
                   </div>
                 </div>
               );
@@ -213,7 +197,7 @@ export const VerificationProgressPage: React.FC<VerificationProgressPageProps> =
         )}
 
         {/* View Results Button */}
-        {!error && (
+        {!error && !isProcessing && (
           <div className="pt-2 flex justify-end">
             <button
               type="button"
